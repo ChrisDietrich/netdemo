@@ -6,8 +6,9 @@ der daraus automatisch zwei native Executables baut:
 - Linux x86-64: ELF mit GCC
 - Windows x64: PE mit Microsoft Visual C++ (MSVC)
 
-Die fertigen Dateien werden als GitHub-Actions-Artefakte veröffentlicht und können
-anschließend heruntergeladen und beispielsweise in Ghidra oder IDA geöffnet werden.
+Die fertigen Dateien werden bei jedem Push automatisch gebaut und als Release
+veröffentlicht. Sie können direkt heruntergeladen und beispielsweise in Ghidra oder
+IDA geöffnet werden — siehe [Fertige Dateien herunterladen](#fertige-dateien-herunterladen).
 
 ## Was macht das Programm?
 
@@ -33,32 +34,45 @@ Unter Windows:
 netdemo.exe www.example.org
 ```
 
-## GitHub-Repository einrichten
+## Fertige Dateien herunterladen
 
-1. Lege auf GitHub ein neues Repository an.
-2. Entpacke dieses Projekt und lade den gesamten Inhalt in das Repository hoch.
-3. Achte darauf, dass `.github/workflows/build.yml` einschließlich des versteckten
-   Verzeichnisses `.github` mit hochgeladen wird.
-4. Öffne im Repository den Reiter **Actions**.
-5. Der Workflow startet bei Push und Pull Request automatisch. Alternativ kann er
-   über **Actions → Build ELF and PE examples → Run workflow** manuell gestartet werden.
+Jeder Push auf `main` baut die Executables neu und veröffentlicht sie im Release
+[**latest**](https://github.com/ChrisDietrich/netdemo/releases/latest). Diese Links
+bleiben dauerhaft gültig und zeigen immer auf den jeweils neuesten Build — sie müssen
+nach einer Codeänderung also nicht angepasst werden:
 
-Nach einem erfolgreichen Lauf findest du auf der Übersichtsseite des Workflow-Runs
-den Abschnitt **Artifacts**. Dort liegen:
+| Datei | Direktlink |
+| --- | --- |
+| ELF (Linux x86-64) | [netdemo-linux](https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo-linux) |
+| PE (Windows x64) | [netdemo.exe](https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo.exe) |
+| ELF-Metadaten (`readelf`-Ausgaben) | [netdemo-elf-metadata.zip](https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo-elf-metadata.zip) |
+| PE-Metadaten (`dumpbin`-Ausgaben) | [netdemo-pe-metadata.zip](https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo-pe-metadata.zip) |
 
-- `linux-elf-gcc`
-- `windows-pe-msvc`
+Auf der Kommandozeile:
 
-Jedes Artefakt enthält das Executable sowie Textdateien mit ausgewählten Header-,
-Section-, Symbol- und Importinformationen. Die Artefakte sind in diesem Workflow
-30 Tage verfügbar.
+```bash
+curl -LO https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo-linux
+curl -LO https://github.com/ChrisDietrich/netdemo/releases/latest/download/netdemo.exe
+chmod +x netdemo-linux
+```
+
+Der Download aus dem Release funktioniert **ohne GitHub-Konto**.
+
+### Alternative: Artefakte eines einzelnen Workflow-Runs
+
+Unter [**Actions**](https://github.com/ChrisDietrich/netdemo/actions) liegt zu jedem
+Lauf im Abschnitt **Artifacts** zusätzlich `linux-elf-gcc` und `windows-pe-msvc`.
+Das ist nützlich, um einen *bestimmten* älteren Stand zu betrachten. Zwei
+Einschränkungen gegenüber den Release-Links oben: der Download erfordert einen
+GitHub-Login, und die Artefakte werden nach 30 Tagen automatisch gelöscht.
 
 ## Lokal kompilieren
 
 ### Linux (GCC)
 
 ```bash
-gcc -std=c11 -Wall -Wextra -O0 -g -fno-pie -no-pie \
+gcc -std=c11 -D_POSIX_C_SOURCE=200112L \
+    -Wall -Wextra -O0 -g -fno-pie -no-pie \
     -o netdemo-linux netdemo.c
 ```
 

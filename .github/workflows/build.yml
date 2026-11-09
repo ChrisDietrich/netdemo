@@ -77,3 +77,49 @@ jobs:
             build/*.txt
           if-no-files-found: error
           retention-days: 30
+
+  publish:
+    name: Publish rolling "latest" release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Linux files
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-elf-gcc
+          path: elf
+
+      - name: Download Windows files
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-pe-msvc
+          path: pe
+
+      - name: Collect release assets
+        run: |
+          mkdir -p release
+          cp elf/netdemo-linux release/netdemo-linux
+          cp pe/netdemo.exe     release/netdemo.exe
+          (cd elf && zip -q -j ../release/netdemo-elf-metadata.zip *.txt)
+          (cd pe  && zip -q -j ../release/netdemo-pe-metadata.zip  *.txt)
+          ls -l release
+
+      - name: Replace the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Letzter Build (${GITHUB_SHA:0:7})" \
+            --notes "Automatisch erzeugte Binaries aus Commit \`${GITHUB_SHA:0:7}\`. Die Download-Links dieses Releases bleiben dauerhaft gueltig und zeigen stets auf den neuesten Build." \
+            release/netdemo-linux \
+            release/netdemo.exe \
+            release/netdemo-elf-metadata.zip \
+            release/netdemo-pe-metadata.zip
