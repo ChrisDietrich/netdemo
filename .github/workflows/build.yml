@@ -1,0 +1,78 @@
+name: Build ELF and PE examples
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Linux ELF (GCC)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Build ELF
+        run: |
+          mkdir -p build
+          gcc -std=c11 -Wall -Wextra -O0 -g -fno-pie -no-pie \
+            -o build/netdemo-linux netdemo.c
+
+      - name: Record ELF metadata
+        run: |
+          file build/netdemo-linux | tee build/file.txt
+          readelf -h build/netdemo-linux > build/elf-header.txt
+          readelf -l build/netdemo-linux > build/program-headers.txt
+          readelf -S build/netdemo-linux > build/section-headers.txt
+          readelf -d build/netdemo-linux > build/dynamic-section.txt
+          readelf -Ws build/netdemo-linux > build/symbols.txt
+
+      - name: Upload Linux files
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-elf-gcc
+          path: |
+            build/netdemo-linux
+            build/*.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  build-windows:
+    name: Windows PE (MSVC)
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build PE
+        shell: cmd
+        run: |
+          if not exist build mkdir build
+          cl /nologo /std:c11 /W4 /Od /Zi /MD /Fe:build\netdemo.exe netdemo.c Ws2_32.lib
+
+      - name: Record PE metadata
+        shell: cmd
+        run: |
+          dumpbin /headers build\netdemo.exe > build\pe-headers.txt
+          dumpbin /imports build\netdemo.exe > build\pe-imports.txt
+
+      - name: Upload Windows files
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-pe-msvc
+          path: |
+            build/netdemo.exe
+            build/*.txt
+          if-no-files-found: error
+          retention-days: 30
